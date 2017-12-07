@@ -71,11 +71,13 @@ onITAGConnected = (peripheral) => {
                 onITAGButtonClicked(peripheral);
             })
             linkLossAlertLevelCh = getITAGCharacteristic(peripheral.id,itag_service_linkLossAlert,itag_characteristic_alertLevel)
-            linkLossAlertLevelCh.write(new Buffer([itag_characteristic_alertLevel_value_noAlert]), true, (error)=>{ 
-                if(error) log.error(error)
-                log.debug(`ITAG peripheral id: ${peripheral.id} LinkLoss AlertLevel write success`)
-                if(beep_on_itag_connect==='true') alertITAGContinous(peripheral.id,200)
-            });
+            if (typeof linkLossAlertLevelCh !== 'undefined' && linkLossAlertLevelCh !== null) {
+                linkLossAlertLevelCh.write(new Buffer([itag_characteristic_alertLevel_value_noAlert]), true, (error)=>{
+                    if(error) log.error(error)
+                    log.debug(`ITAG peripheral id: ${peripheral.id} LinkLoss AlertLevel write success`)
+                    if(beep_on_itag_connect==='true') alertITAGContinous(peripheral.id,200)
+                });
+            }
         })
     },300) 
 }
@@ -123,7 +125,8 @@ onNobleScanStop  = () => { log.info('NOBLE scanning stopped'); setTimeout(startS
 
 onNobleDiscover = (peripheral) =>{
     log.debug(`NOBLE discovered id: ${peripheral.id} localName: ${peripheral.advertisement.localName} state: ${peripheral.state}`)
-    is_itag             = peripheral.advertisement.localName == 'ITAG'
+    var name = String(peripheral.advertisement.localName).trim().toUpperCase()
+    is_itag             = name == 'ITAG'
     is_not_connected    = peripheral.state == 'disconnected'
     if(is_itag && is_not_connected){ connectITAG(peripheral) }
 }
