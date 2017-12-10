@@ -20,6 +20,7 @@ See this [link](https://github.com/sandeepmistry/noble#running-without-rootsudo)
 ## MQTT
 - `itag/<tag uuid>/presence` emits values `1` or `0` if the device is connected or not
 - `itag/<tag uuid>/button/click` emits `1` on button click
+- `itag/<tag uuid>/battery/level` emits values from `0` to `100` of battery level percentage
 - `itag/<tag uuid>/alert/continuous` on payload: `< miliseconds >`  will perform a continuous piezzo aler for ms duration  
 - `itag/<tag uuid>/alert/beep` on payload: `< miliseconds >` will perform a beeping piezzo aler for ms duration  
 

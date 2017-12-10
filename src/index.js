@@ -16,9 +16,11 @@ const mqtt_config       = {
 const itag_service_button               = 'ffe0'
 const itag_service_immediateAlert       = '1802'
 const itag_service_linkLossAlert        = '1803'
+const itag_service_battery              = '180f'
 
 const itag_characteristic_click       = 'ffe1'
 const itag_characteristic_alertLevel    = '2a06'
+const itag_characteristic_batteryLevel  = '2a19'
 
 //https://googlechrome.github.io/samples/web-bluetooth/link-loss.html
 const itag_characteristic_alertLevel_value_noAlert      = 0x00 // ITAG no sound
@@ -60,16 +62,31 @@ onITAGButtonClicked = (peripheral) => {
     mqttClient.publish(`${mqtt_baseTopic}/${peripheral.id}/button/click`, '1')
 }
 
+onITAGBatteryLevel = (peripheral, data) => {
+    mqttClient.publish(`${mqtt_baseTopic}/${peripheral.id}/battery/level`, data.readUInt8(0).toString())
+}
+
 onITAGConnected = (peripheral) => {
     // 300 ms delay due to ITAG disconnects on immediate service discovery
     setTimeout(()=>{
         peripheral.discoverAllServicesAndCharacteristics((error, services, characteristics)=>{
             buttonCharacteristics = getITAGCharacteristic(peripheral.id,itag_service_button,itag_characteristic_click)
-            buttonCharacteristics.subscribe((error)=>{ if(error) log.error(error) })
             buttonCharacteristics.on('data', (data,isNotification) => {
                 log.debug(`ITAG peripheral id: ${peripheral.id} Button Clicked`) 
                 onITAGButtonClicked(peripheral);
             })
+            buttonCharacteristics.subscribe((error)=>{ if(error) log.error(error) })
+
+            batteryCharacteristics = getITAGCharacteristic(peripheral.id, itag_service_battery, itag_characteristic_batteryLevel)
+            if (typeof batteryCharacteristics !== 'undefined' && batteryCharacteristics !== null) {
+                batteryCharacteristics.on('data', (data, isNotification) => {
+                    log.debug(`ITAG peripheral id: ${peripheral.id} Battery Level = `, data.readUInt8(0) + `%`)
+                    onITAGBatteryLevel(peripheral, data);
+                })
+                batteryCharacteristics.subscribe((error)=>{ if(error) log.error(error) })
+                batteryCharacteristics.read()
+            }
+
             linkLossAlertLevelCh = getITAGCharacteristic(peripheral.id,itag_service_linkLossAlert,itag_characteristic_alertLevel)
             if (typeof linkLossAlertLevelCh !== 'undefined' && linkLossAlertLevelCh !== null) {
                 linkLossAlertLevelCh.write(new Buffer([itag_characteristic_alertLevel_value_noAlert]), true, (error)=>{
