@@ -76,11 +76,11 @@ onITAGBatteryLevel = (peripheral, data) => {
 
 onITAGConnected = (peripheral) => {
     // 300 ms delay due to ITAG disconnects on immediate service discovery
-	setTimeout(()=>{
+    setTimeout(()=>{
         peripheral.discoverAllServicesAndCharacteristics((error, services, characteristics)=>{
             buttonCharacteristics = getITAGCharacteristic(peripheral.id,itag_service_button,itag_characteristic_click)
             buttonCharacteristics.on('data', (data,isNotification) => {
-                log.info(`ITAG peripheral id: ${peripheral.id} Button Clicked`) 
+                log.debug(`ITAG peripheral id: ${peripheral.id} Button Clicked`) 
                 onITAGButtonClicked(peripheral);
             })
             buttonCharacteristics.subscribe((error)=>{ if(error) log.error(error) })
@@ -88,7 +88,7 @@ onITAGConnected = (peripheral) => {
             batteryCharacteristics = getITAGCharacteristic(peripheral.id, itag_service_battery, itag_characteristic_batteryLevel)
             if (typeof batteryCharacteristics !== 'undefined' && batteryCharacteristics !== null) {
                 batteryCharacteristics.on('data', (data, isNotification) => {
-                    log.info(`ITAG peripheral id: ${peripheral.id} Battery Level = `, data.readUInt8(0) + `%`)
+                    log.debug(`ITAG peripheral id: ${peripheral.id} Battery Level = `, data.readUInt8(0) + `%`)
                     onITAGBatteryLevel(peripheral, data);
                 })
                 batteryCharacteristics.subscribe((error)=>{ if(error) log.error(error) })
@@ -109,17 +109,15 @@ onITAGConnected = (peripheral) => {
 
 connectITAG = (peripheral) => {
 	myPeripheral = peripheral;
-  //Calls RSSI funcion evey 6 seconds.
+        //Calls RSSI funcion evey 6 seconds.
 	setInterval(updateRSSI, 6000)
     log.info(`NOBLE peripheral id: ${peripheral.id} connecting`)
     peripheral.connect((error) => {
-		
-        if(error) { log.error(error); return }
+	if(error) { log.error(error); return }
         onITAGConnected(peripheral)
     })
     peripheral.once('connect', ()=>{ 
-	    
-        log.debug(`NOBLE peripheral id: ${peripheral.id} connected`) 
+	log.debug(`NOBLE peripheral id: ${peripheral.id} connected`) 
         mqttClient.publish(`${mqtt_baseTopic}/${peripheral.id}/presence`, '1')
         mqttClient.subscribe([
             `${mqtt_baseTopic}/${peripheral.id}/alert/continuous`,
@@ -171,7 +169,7 @@ onNobleDiscover = (peripheral) =>{
     var name = String(peripheral.advertisement.localName).trim().toUpperCase()
     is_itag             = name == 'ITAG'
     is_not_connected    = peripheral.state == 'disconnected'
-	if(is_itag && is_not_connected){ connectITAG(peripheral) }
+    if(is_itag && is_not_connected){ connectITAG(peripheral) }
 }
 
 /*
