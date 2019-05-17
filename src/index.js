@@ -27,6 +27,12 @@ const itag_characteristic_alertLevel_value_noAlert      = 0x00 // ITAG no sound
 const itag_characteristic_alertLevel_value_mildAlert    = 0x01 // ITAG continous 
 const itag_characteristic_alertLevel_value_highAlert    = 0x02 // ITAG beeping
 
+//Sets peripheral variable to be used by RSSI query
+var myPeripheral;
+
+//Sets script start time for later counting the up-time seconds of connection.
+var start_time = Date.now();
+
 getITAGCharacteristic = (id, serviceId, characteristicID) => {
     peripheral = noble._peripherals[id]
     if (!peripheral) return;
@@ -60,6 +66,8 @@ alertITAGContinous = (id, ms) => {
 
 onITAGButtonClicked = (peripheral) => {
     mqttClient.publish(`${mqtt_baseTopic}/${peripheral.id}/button/click`, '1')
+    //Sets switch position back to 0, in the future this could be used to set profiles for double or triple click use cases.
+    mqttClient.publish(`${mqtt_baseTopic}/${peripheral.id}/button/click`, '0')
 }
 
 onITAGBatteryLevel = (peripheral, data) => {
@@ -68,11 +76,11 @@ onITAGBatteryLevel = (peripheral, data) => {
 
 onITAGConnected = (peripheral) => {
     // 300 ms delay due to ITAG disconnects on immediate service discovery
-    setTimeout(()=>{
+	setTimeout(()=>{
         peripheral.discoverAllServicesAndCharacteristics((error, services, characteristics)=>{
             buttonCharacteristics = getITAGCharacteristic(peripheral.id,itag_service_button,itag_characteristic_click)
             buttonCharacteristics.on('data', (data,isNotification) => {
-                log.debug(`ITAG peripheral id: ${peripheral.id} Button Clicked`) 
+                log.info(`ITAG peripheral id: ${peripheral.id} Button Clicked`) 
                 onITAGButtonClicked(peripheral);
             })
             buttonCharacteristics.subscribe((error)=>{ if(error) log.error(error) })
@@ -80,7 +88,7 @@ onITAGConnected = (peripheral) => {
             batteryCharacteristics = getITAGCharacteristic(peripheral.id, itag_service_battery, itag_characteristic_batteryLevel)
             if (typeof batteryCharacteristics !== 'undefined' && batteryCharacteristics !== null) {
                 batteryCharacteristics.on('data', (data, isNotification) => {
-                    log.debug(`ITAG peripheral id: ${peripheral.id} Battery Level = `, data.readUInt8(0) + `%`)
+                    log.info(`ITAG peripheral id: ${peripheral.id} Battery Level = `, data.readUInt8(0) + `%`)
                     onITAGBatteryLevel(peripheral, data);
                 })
                 batteryCharacteristics.subscribe((error)=>{ if(error) log.error(error) })
@@ -100,13 +108,17 @@ onITAGConnected = (peripheral) => {
 }
 
 connectITAG = (peripheral) => {
+	myPeripheral = peripheral;
+  //Calls RSSI funcion evey 6 seconds.
+	setInterval(updateRSSI, 6000)
     log.info(`NOBLE peripheral id: ${peripheral.id} connecting`)
-
     peripheral.connect((error) => {
+		
         if(error) { log.error(error); return }
         onITAGConnected(peripheral)
     })
     peripheral.once('connect', ()=>{ 
+	    
         log.debug(`NOBLE peripheral id: ${peripheral.id} connected`) 
         mqttClient.publish(`${mqtt_baseTopic}/${peripheral.id}/presence`, '1')
         mqttClient.subscribe([
@@ -123,6 +135,20 @@ connectITAG = (peripheral) => {
             `${mqtt_baseTopic}/${peripheral.id}/alert/beep`,
         ])
     })
+}
+
+//Sends RSSI over MQTT
+function updateRSSI(){
+    myPeripheral.updateRssi(function(error, rssi){
+    //rssi are always negative values 
+    if(rssi < 0) {
+		var current_time = Date.now();
+		var run_time =((current_time - start_time)/1000)
+		log.debug(`iTAG connected id: ${myPeripheral.id} localName: ${myPeripheral.advertisement.localName} state: ${myPeripheral.state} rssi: ${rssi} at ${run_time}`)
+		mqttClient.publish(`${mqtt_baseTopic}/${myPeripheral.id}/rssi`, `${rssi}`)
+	}
+  }); 
+
 }
 
 /*
@@ -145,7 +171,7 @@ onNobleDiscover = (peripheral) =>{
     var name = String(peripheral.advertisement.localName).trim().toUpperCase()
     is_itag             = name == 'ITAG'
     is_not_connected    = peripheral.state == 'disconnected'
-    if(is_itag && is_not_connected){ connectITAG(peripheral) }
+	if(is_itag && is_not_connected){ connectITAG(peripheral) }
 }
 
 /*
