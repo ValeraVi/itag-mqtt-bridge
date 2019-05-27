@@ -3,16 +3,12 @@ const noble = require('noble')
 const log   = require('winston')
 
 const beep_on_itag_connect = process.env.BEEP_ON_ITAG_CONNECT || 'true'
-
-const log_level = process.env.LOG_LEVEL || 'info'
-
-
+const log_level = process.env.LOG_LEVEL || 'debug'
 
 const rssi_update_interval = 15000 //in ms
 const double_click_interval = 800 //in ms
 
 const home_assistant = 1 // 0 = disables HASS discovery, 1 = enables HASS discovery
-
 if (home_assistant == 0) {
 	const mqtt_baseTopic    = process.env.MQTT_BASE_TOPIC || 'itag'	 //MQTT topic if not using HASS
 } else if (home_assistant == 1) {
@@ -20,10 +16,10 @@ if (home_assistant == 0) {
 }
 
 const mqtt_baseTopic    = process.env.MQTT_BASE_TOPIC || 'homeassistant/sensor'
-const mqtt_url          = process.env.MQTT_URL ||'mqtt://192.168.0.25:1883'
+const mqtt_url          = process.env.MQTT_URL ||'mqtt://0.0.0.0:1883'
 const mqtt_config       = {
-                            username: process.env.MQTT_USERNAME || 'mqtt',
-                            password: process.env.MQTT_PASSWORD || 'moschito',
+                            username: process.env.MQTT_USERNAME || 'user',
+                            password: process.env.MQTT_PASSWORD || 'password',
                         }
 
 // Only if using HASS
